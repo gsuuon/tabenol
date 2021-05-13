@@ -57,7 +57,7 @@ const o = (parent, children) => {
 
 const hslaFromId = wid => `hsla(${wid % 18 * 20}, 60%, 80%, 0.8)`
 
-const focusTab = function(wid, tid) {
+const focusTab = (wid, tid) => {
     wid = parseInt(wid)
     tid = parseInt(tid)
 
@@ -68,7 +68,7 @@ const focusTab = function(wid, tid) {
 }
 
 
-const createTabContainerElement = function(tab) {
+const createTabContainerElement = tab => {
     const stripHttp = url => url.split('://')[1]
 
     const container = el('tab-container')
@@ -104,7 +104,7 @@ const createTabContainerElement = function(tab) {
 
 }
 
-const createWindowContainerElement = function(w) {
+const createWindowContainerElement = w => {
     const wid = w.id
 
     const container = el('window-container')
@@ -146,7 +146,7 @@ const createWindowContainerElement = function(w) {
     )
 }
 
-const traverseSibling = function(node, next) {
+const traverseSibling = (node, next) => {
     const dirSib = next ? 'nextSibling' : 'previousSibling' 
     const nodeName = node.nodeName
     let currentNode = node
@@ -185,7 +185,7 @@ class TabenolController {
         const rotatorSymbol = document.querySelector('rotate-symbol')
         const windows = document.getElementById('windows')
 
-        this.rotate = function() {
+        this.rotate = () => {
             const row = rotatorSymbol.classList.toggle('row')
 
             windows.classList.toggle('row')
@@ -295,7 +295,7 @@ class TabenolController {
     }
 }
 
-function initializeRestoreSessionHandler() {
+const initializeRestoreSessionHandler = () => {
     const STATE = {
         CAN_LOAD: 'CAN_LOAD',
         SAVE_AND_EXIT: 'SAVE_AND_EXIT',
@@ -330,7 +330,7 @@ function initializeRestoreSessionHandler() {
             }
 
             // update focused window's tabs to first saved window's tabs
-            chrome.windows.getCurrent({}, function(currentWindow) {
+            chrome.windows.getCurrent({}, currentWindow => {
                 const firstWindow = previousSessionWindows[0]
                 const firstWindowTabs = firstWindow.tabs
 
@@ -403,12 +403,11 @@ function initializeRestoreSessionHandler() {
     })
 }
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', () => {
     initializeRestoreSessionHandler()
 
     const queryForAllTabs = () => queryForTabs({})
     const queryForFocusedTab = () => queryForTabs({active: true, currentWindow: true})
-
 
     getAllWindows({populate: true})
         .then(windows => {

@@ -234,7 +234,6 @@ class TabenolController {
             this.selectedTabNode.scrollIntoViewIfNeeded()
         } else {
             this.moveFocusWindow({next})
-            return false
         }
     }
 
@@ -243,8 +242,7 @@ class TabenolController {
         * key shortcuts todo
         *
         * [ ] - / search
-        * [ ] - l sort by latest opened
-        * [ ] - o sort by opened first
+        * [ ] - f toggle by opened earliest / latest
         * [x] - m toggle row view
         */
         if (this.searchMode) {

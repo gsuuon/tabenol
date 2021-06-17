@@ -8,8 +8,8 @@ Users can:
 
 Architecture:
 - Set up for modular extensions, that is, separate extensions that are optionally installed by users which intercommunicate with notes service, e.g:
-    - Users can create an extension which listens for notes changes and backs it up to Dropbox or Drive
-    - Users can create an extension which shows notes with markdown parsing
+    - external extension which listens for notes changes and backs it up to Dropbox or Drive
+    - external extension which shows notes with markdown parsing
 ---
 ## Modes
 Users can switch between tabs and notes modes by clicking on the header
@@ -68,7 +68,7 @@ Users can switch between tabs and notes modes by clicking on the header
         - split url into sections (e.g. after each "/"), more matching sections higher
             - sections either match or not
     - always contains at least 2 notes
-        - current url note
+        - current page note
         - current domain note
         - either can be empty
             - if user selects and adds content, creates/saves a new note
@@ -83,10 +83,11 @@ Users can switch between tabs and notes modes by clicking on the header
         - placeholder entry which points to top matching url note of current page
 
 - Query notes
-    - backed by IndexedDB
+    - IndexedDB
         - query commands
             - search in body
                 - by iterating over all documents
+                - no text search or partial string search supported
                 - could search for complete words by indexing all unique words + multi entry index, reference
                     [article](https://hacks.mozilla.org/2014/06/breaking-the-borders-of-indexeddb/)
             - filter by timerange
@@ -96,12 +97,9 @@ Users can switch between tabs and notes modes by clicking on the header
         - query commands composable by all or any
             - more in query format below
     
-    - IndexedDB
-        - generates indices so some searches can be accelerated
-            - e.g. get all entries with url starting with x
+        - generates indices so some searches can be accelerated, e.g.
+            - get all entries with url starting with x
             - get all entries with timestamp from x
-        - no text search or partial string search
-            - implement by searching through entire body text manually
 
 - Allows connections from other extensions in service worker
     - sends messages on certain actions:
@@ -115,31 +113,23 @@ Users can switch between tabs and notes modes by clicking on the header
 **options** view allows configuring:
 - Toggle automatic check if current domain has notes
 - User specified allowlist of extensions
-    - allowlist is object of
+    - allowlist entries contain
         - extension id
-        - allowed actions or events
+        - requests or events, e.g.
             - onUpdateNote
             - onClose
             - getAllNotes
             - getNoteForUrl
             - doQuery (implicitly means can getAllNotes or getNoteForUrl)
             - doUpdateNote
-
-### Notes
-- Syncs to chrome extensions storage by default, but that is limited to 100kb
-- Uses IndexedDB for local storage
-- Allows other extensions to connect and listen for events (on note update, on close)
-    - User specifies which extension ids are allowed
-    - Extension ID's found in Manage Extensions (enable developer mode toggle)
-
+    - extension ID's found in Manage Extensions (enable developer mode toggle)
 
 ### Query Format
 Built on IndexedDB
 
-A query is a list of queries which filter sequentially. An (any) query is a list of queries where any match will continue. Expensive queries should come later (`any`, bodyContains)
+A query is a list of queries which filter sequentially. An `any` query is a list of queries where any match will continue. Expensive queries should come later (compound, bodyContains)
 
-Keys should be generated incrementing ints, index on Url.
-
+As an object:
 ```
 let myQuery =
     query
@@ -151,7 +141,7 @@ let myQuery =
         ]
 ```
 
-As text (query from external extensions via message)
+As text: (query from external extensions via message)
 ```
 urlStarts "google.com"
 any [
@@ -161,7 +151,7 @@ withTag "greeting"
 bodyContains "hello"
 ```
 
-Possible implementation sketch in pseudo code, filtering key sets sequentially:  
+Possible implementation sketch in pseudo code, filtering key lists sequentially:  
 ```
 type QueryDefinition =
     command
@@ -178,7 +168,7 @@ module QueryCommands =
 
 let produceExecutable queryDefinition =
     // processes a query definition into something ready to execute given an objectstore
-    // returns a list of keys (may need a wrapper / helper to this)
+    // returns a list of keys
 
     switch queryDefinition.command
         urlStarts
@@ -190,7 +180,7 @@ let produceExecutable queryDefinition =
 
 let execOnKeys objStore keys query =
     // runs a query on an ordered list of keys
-    // returns a list of keys which matched
+    // returns a list of keys
     
     let curIdx = 0
     let resultKeys = []
@@ -215,35 +205,21 @@ let execQuery objStore query =
 let applyQueriesFilter objStore keys queries =
     // sequentially filters keys list which match successive queries
 
-    let query :: restQueries = queries
-
-    let curResultKeys = execQuery query
-    
-    for q in restQueries do
-        let results = execOnKeys curResultKeys q
-        curResultsKeys = results
-
-    return curResultsKeys
+    return queries.fold (keys, (curKeys, query) => execOnKeys curKeys query)
 
 let applyQueriesJoin objStore keys queries =
     // Collects any key which matches
     // Run in parallel
 
-    let cumulatedKeys = []
-
-    let queryJobs =
-        queries.map
-            wrapQueryAsAsync (execOnKeys keys q)
+    let queryJobs = queries.map (q => wrapQueryAsAsync (execOnKeys keys q))
 
     queryJobs.WaitAll()
+
     let results =
-        queryJobs.reduce(
-            new Set(),
-            (allResults, results) => allResults.addAll(results)
-        )
+        queryJobs.reduce(new Set(), (allResults, results) => allResults.addAll(results))
 
     return sortedList results
 ```
-If I use this, it might be better for perf if key is an int not a string (url), since I'll be operating on lists of keys.
+If I use this, might be better for perf if key is an int since I'll be operating on lists of keys frequently.
 
-Alternatively I could attempt to apply all filters immediately on every entry. This lets me return results asynchronously as I go. Possibly less performant since I'm not sure how to do this while actually taking advantage of the indices, but we'd only ever iterate over the entries once instead of once for every query (but indexed).
+Alternatively I could attempt to apply all filters immediately on every entry. This lets me return results asynchronously as I go. Possibly less performant since I'm not sure how to do this while actually taking advantage of the indices, but I'd only ever iterate over the entries once instead of once for every query (but indexed).

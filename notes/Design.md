@@ -185,13 +185,13 @@ let execOnKeys objStore keys query =
     let curIdx = 0
     let resultKeys = []
 
-    loop
+    cursor event loop
         ...
         if condition
             resultKeys.push keys[curIdx]
         ...
         curIdx++
-        query.continue(keys[curIdx])
+        cursor.continue(keys[curIdx])
 
 let execQuery objStore query =
     // runs a query on all keys

@@ -4,10 +4,11 @@ Users can:
 - Store notes
 - Query notes
 - Badge icon changes if notes exist for current page or domain
+- Create meta notes (notes on groups of notes)
 
 Architecture:
-- Set up for modular extensions, that is, separate extensions that are optionally installed by users which intercommunicate, e.g:
-    - Users can create/install an extension which listens for notes changes and backs it up to Dropbox or Drive
+- Set up for modular extensions, that is, separate extensions that are optionally installed by users which intercommunicate with notes service, e.g:
+    - Users can create an extension which listens for notes changes and backs it up to Dropbox or Drive
     - Users can create an extension which shows notes with markdown parsing
 ---
 ## Modes
@@ -17,20 +18,20 @@ Users can switch between tabs and notes modes by clicking on the header
 **tabs** mode is the current tabenol screen, with new features:
 - Icon over entries which have attached notes (url specific)
 - Hover over any entry shows the notes window
-    - Notes window is fixed size to the left of the tabs menu
-    - Notes window has bg opacity < 1 if mouse isn't over it
-    - Clicking on the window focuses it
-        - Opacity = 1
-        - User input
-        - Basic text (i.e. no markdown parsing)
+    - notes window is fixed size to the left of the tabs menu
+    - notes window has bg opacity < 1 if mouse isn't over it
+    - clicking on the window focuses it
+        - opacity = 1
+        - user input
+        - basic text (i.e. no markdown parsing)
 
 - Notes window can be resized by dragging bottom left corner
-    - Wordwrap by default (toggleable)
+    - word-wrap by default (toggleable)
 
 
 **notes** mode:
 - Notes database (IndexedDB)
-    - Service worker executes queries and updates
+    - service worker executes queries and updates
     - contains
         - url
             - protocol is stripped (agnostic between http and https)
@@ -50,12 +51,21 @@ Users can switch between tabs and notes modes by clicking on the header
         - tags
             - list of strings
     - url and domain can be the same (when user wants to attach a note to the domain)
+    - meta notes objectstore
+        - contains
+            - name (optional)
+            - timestamps
+            - body
+            - tags
+            - child note keys
+                - points to notes in url notes, or
+                - points to other meta notes
 
 - Main view
     - all notes with domain = current domain
     - notes sorted by how closely they match current url
-        - Current url should be top
-        - Split url into sections (e.g. after each "/"), more matching sections higher
+        - current url should be top
+        - split url into sections (e.g. after each "/"), more matching sections higher
             - sections either match or not
     - always contains at least 2 notes
         - current url note
@@ -66,9 +76,15 @@ Users can switch between tabs and notes modes by clicking on the header
     - can delete note with confirmation
         - same ui as tabenol when closing a window
 
+- Meta view
+    - `tabenol | notes | meta` meta option appears in notes mode
+    - entries are all meta notes which reference any of the notes matching current page
+    - if empty
+        - placeholder entry which points to top matching url note of current page
+
 - Query notes
     - backed by IndexedDB
-        - Query commands
+        - query commands
             - search in body
                 - by iterating over all documents
                 - could search for complete words by indexing all unique words + multi entry index, reference
@@ -77,26 +93,26 @@ Users can switch between tabs and notes modes by clicking on the header
             - filter by url startswith
             - filter by tag
         
-        - Query commands composable by all or any
+        - query commands composable by all or any
             - more in query format below
     
     - IndexedDB
-        - Generates indices so some searches can be accelerated
+        - generates indices so some searches can be accelerated
             - e.g. get all entries with url starting with x
             - get all entries with timestamp from x
-        - No text search or partial string search
+        - no text search or partial string search
             - implement by searching through entire body text manually
 
 - Allows connections from other extensions in service worker
-    - Sends messages on certain actions:
-        - Update note (debounced, on input in field)
-        - Close extension
-    - Responds to certain requests
-        - Process a query
-        - Get all notes
-        - Get note for url
+    - sends messages on certain actions:
+        - update note (debounced, on input in field)
+        - close extension
+    - responds to certain requests
+        - process a query
+        - get all notes
+        - get note for url
 
-**options** page allows configuring:
+**options** view allows configuring:
 - Toggle automatic check if current domain has notes
 - User specified allowlist of extensions
     - allowlist is object of
